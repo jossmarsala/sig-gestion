@@ -188,8 +188,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </span>
           </div>
 
-          <div className="text-xs font-medium text-[var(--product-stock-green)]">
-            {product.stock} en stock
+          <div
+            className={
+              product.stock === 0
+                ? 'text-xs font-semibold text-[var(--destructive)]'
+                : 'text-xs font-medium text-[var(--product-stock-green)]'
+            }
+          >
+            {product.stock === 0 ? 'Sin stock' : `${product.stock} en stock`}
           </div>
         </div>
       </div>

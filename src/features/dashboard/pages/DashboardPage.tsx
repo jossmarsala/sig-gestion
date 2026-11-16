@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useToast } from "@/context/ToastContext";
 import { useSales } from "@/context/SalesContext";
+import { getErrorMessage } from "@/lib/api/errors";
 import { DashboardHeader } from "../components/DashboardHeader";
 import { DashboardQuickActions } from "../components/DashboardQuickActions";
 import { DashboardAlertsBlock } from "../components/DashboardAlertsBlock";
@@ -23,12 +24,20 @@ export const DashboardPage: React.FC = () => {
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [isNewExpenseOpen, setIsNewExpenseOpen] = useState(false);
 
-  const handleCreateSale = (formData: NewSaleFormData) => {
-    const newSale = createSale(formData);
-    showToast(
-      `Venta registrada con éxito por $${newSale.total.toLocaleString("es-AR")}.`,
-    );
-    setIsNewSaleOpen(false);
+  const handleCreateSale = async (formData: NewSaleFormData) => {
+    try {
+      const newSale = await createSale(formData);
+      showToast(
+        `Venta registrada con éxito por $${newSale.total.toLocaleString("es-AR")}.`,
+        "success",
+      );
+      setIsNewSaleOpen(false);
+    } catch (err) {
+      showToast(
+        `No se pudo registrar la venta: ${getErrorMessage(err)}`,
+        "error",
+      );
+    }
   };
 
   const handleCreateOrder = (data: RegistrarPedidoFormData) => {

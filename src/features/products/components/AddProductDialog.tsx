@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -21,12 +21,15 @@ interface AddProductDialogProps {
   onOpenChange: (open: boolean) => void
   productToEdit?: ProductItem | null
   onSaveProduct: (data: NewProductFormData, id?: string) => void
+  /** Material descriptions from the `materiales` table (FK must exist). */
+  materials?: string[]
 }
 
 interface InnerFormProps {
   productToEdit?: ProductItem | null
   onSaveProduct: (data: NewProductFormData, id?: string) => void
   onCancel: () => void
+  materials: string[]
 }
 
 const CATEGORIES: ProductCategoryKey[] = ['Anillos', 'Aros', 'Cadenas', 'Pulseras']
@@ -35,6 +38,7 @@ const InnerAddProductForm: React.FC<InnerFormProps> = ({
   productToEdit,
   onSaveProduct,
   onCancel,
+  materials,
 }) => {
   const [name, setName] = useState(productToEdit?.name || '')
   const [code, setCode] = useState(productToEdit?.code || '')
@@ -43,11 +47,20 @@ const InnerAddProductForm: React.FC<InnerFormProps> = ({
   )
   const [price, setPrice] = useState(productToEdit?.price ? productToEdit.price.toString() : '')
   const [stock, setStock] = useState(productToEdit?.stock !== undefined ? productToEdit.stock.toString() : '1')
-  const [metalPurity, setMetalPurity] = useState(productToEdit?.metalPurity || 'Plata 925')
+  const [metalPurity, setMetalPurity] = useState(
+    productToEdit?.metalPurity || materials[0] || ''
+  )
   const [description, setDescription] = useState(productToEdit?.description || '')
   const [imageUrl, setImageUrl] = useState(productToEdit?.imageUrl || '')
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Catalogs may arrive after the dialog mounts; pick the first material then.
+  useEffect(() => {
+    if (!metalPurity && materials.length > 0) {
+      setMetalPurity(materials[0])
+    }
+  }, [materials, metalPurity])
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -160,13 +173,28 @@ const InnerAddProductForm: React.FC<InnerFormProps> = ({
           <label className="block text-xs font-medium text-[var(--neutral-emphasis)] mb-1">
             Material
           </label>
-          <input
-            type="text"
-            value={metalPurity}
-            onChange={(e) => setMetalPurity(e.target.value)}
-            placeholder="Ej.: Plata 925, Oro 18k, Acero..."
-            className="h-10 w-full rounded-[var(--dashboard-input-radius)] border border-[var(--neutral-border)] bg-[var(--neutral-surface)] px-3 text-xs text-[var(--neutral-emphasis)] placeholder:text-[var(--neutral-placeholder)] focus:border-[var(--sidebar-ring)] focus:outline-hidden"
-          />
+          {materials.length > 0 ? (
+            <Select value={metalPurity} onValueChange={setMetalPurity}>
+              <SelectTrigger className="h-10 w-full rounded-[var(--dashboard-input-radius)] border border-[var(--neutral-border)] bg-[var(--neutral-surface)] px-3 text-xs text-[var(--neutral-emphasis)]">
+                <SelectValue placeholder="Seleccionar material..." />
+              </SelectTrigger>
+              <SelectContent>
+                {materials.map((material) => (
+                  <SelectItem key={material} value={material}>
+                    {material}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <input
+              type="text"
+              value={metalPurity}
+              onChange={(e) => setMetalPurity(e.target.value)}
+              placeholder="Ej.: Plata 925, Oro 18k, Acero..."
+              className="h-10 w-full rounded-[var(--dashboard-input-radius)] border border-[var(--neutral-border)] bg-[var(--neutral-surface)] px-3 text-xs text-[var(--neutral-emphasis)] placeholder:text-[var(--neutral-placeholder)] focus:border-[var(--sidebar-ring)] focus:outline-hidden"
+            />
+          )}
         </div>
 
         {/* Price */}
@@ -310,6 +338,7 @@ export const AddProductDialog: React.FC<AddProductDialogProps> = ({
   onOpenChange,
   productToEdit,
   onSaveProduct,
+  materials = [],
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -328,6 +357,7 @@ export const AddProductDialog: React.FC<AddProductDialogProps> = ({
         <InnerAddProductForm
           key={productToEdit?.id || 'new-product'}
           productToEdit={productToEdit}
+          materials={materials}
           onSaveProduct={(data, id) => {
             onSaveProduct(data, id)
             onOpenChange(false)

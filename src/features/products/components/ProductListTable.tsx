@@ -137,8 +137,14 @@ export const ProductListTable: React.FC<ProductListTableProps> = ({
                     )}
                   </td>
                   <td className="py-3.5 px-4">
-                    <span className="font-medium text-[var(--product-stock-green)]">
-                      {item.stock} en stock
+                    <span
+                      className={
+                        item.stock === 0
+                          ? 'font-semibold text-[var(--destructive)]'
+                          : 'font-medium text-[var(--product-stock-green)]'
+                      }
+                    >
+                      {item.stock === 0 ? 'Sin stock' : `${item.stock} en stock`}
                     </span>
                   </td>
                   <td className="py-3.5 px-4 font-bold text-sm text-[var(--neutral-emphasis)] font-mono tabular-nums">

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { SidebarBrand } from './SidebarBrand'
 import { SidebarNav } from './SidebarNav'
 import { SidebarUserProfile } from './SidebarUserProfile'
+import { DataSourceToggle } from '@/components/dev/DataSourceToggle'
 import type { SidebarProps } from '@/types/navigation.types'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -66,12 +67,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <SidebarNav isCollapsed={isCollapsed} currentPath={currentPath} />
       </div>
 
-      {/* Bottom User Profile */}
-      <SidebarUserProfile
-        user={activeUser}
-        isCollapsed={isCollapsed}
-        onSignOut={onSignOut}
-      />
+      {/* Bottom: data source switch (dev only) + User Profile */}
+      <div className="flex flex-col">
+        <DataSourceToggle isCollapsed={isCollapsed} />
+        <SidebarUserProfile
+          user={activeUser}
+          isCollapsed={isCollapsed}
+          onSignOut={onSignOut}
+        />
+      </div>
     </aside>
   )
 }

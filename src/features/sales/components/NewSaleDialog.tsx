@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useProducts } from "@/features/products/hooks/useProducts";
 import type {
   NewSaleFormData,
   PaymentMethod,
@@ -35,23 +36,6 @@ interface NewSaleDialogProps {
   onSubmit: (formData: NewSaleFormData) => void;
 }
 
-interface QuickProductOption {
-  name: string;
-  category: "Anillos" | "Aros" | "Cadenas" | "Pulseras";
-  price: number;
-}
-
-const QUICK_CATALOG: QuickProductOption[] = [
-  { name: "Anillo de plata 925", category: "Anillos", price: 1500 },
-  { name: "Aros de plata", category: "Aros", price: 1298 },
-  { name: "Aros de perla cultivada", category: "Aros", price: 4600 },
-  { name: "Cadena de acero quirúrgico", category: "Cadenas", price: 1846 },
-  { name: "Cadena de plata legitima", category: "Cadenas", price: 3000 },
-  { name: "Pulsera de cuero y plata", category: "Pulseras", price: 4151 },
-  { name: "Anillo de oro 18k", category: "Anillos", price: 6025 },
-  { name: "Dije de plata tallado", category: "Cadenas", price: 5000 },
-];
-
 interface InnerNewSaleFormProps {
   onSubmit: (formData: NewSaleFormData) => void;
   onCancel: () => void;
@@ -61,6 +45,9 @@ const InnerNewSaleForm: React.FC<InnerNewSaleFormProps> = ({
   onSubmit,
   onCancel,
 }) => {
+  const { products, isLoading: productsLoading, error: productsError } =
+    useProducts();
+
   const [cliente, setCliente] = useState("Consumidor final");
   const [clienteContacto, setClienteContacto] = useState("");
   const [pago, setPago] = useState<PaymentMethod>("Efectivo");
@@ -75,47 +62,53 @@ const InnerNewSaleForm: React.FC<InnerNewSaleFormProps> = ({
   const [splitMethod2, setSplitMethod2] =
     useState<Exclude<PaymentMethod, "Dividido">>("Transferencia");
 
-  // Cart items
-  const [items, setItems] = useState<SaleItem[]>([
-    {
-      id: "i-1",
-      name: "Anillo de plata 925",
-      category: "Anillos",
-      quantity: 1,
-      unitPrice: 1500,
-    },
-  ]);
+  // Cart items (ids are real `id_producto` values from the catalog)
+  const [items, setItems] = useState<SaleItem[]>([]);
 
   // Catalog item selector helper
   const [selectedCatalogIndex, setSelectedCatalogIndex] = useState<number>(0);
+  const selectedProduct = products[selectedCatalogIndex];
 
   const handleAddItemFromCatalog = () => {
-    const selected = QUICK_CATALOG[selectedCatalogIndex];
-    if (!selected) return;
+    const product = products[selectedCatalogIndex];
+    if (!product || product.stock <= 0) return;
 
-    setItems((prev) => [
-      ...prev,
-      {
-        id: `i-${Date.now()}`,
-        name: selected.name,
-        category: selected.category,
-        quantity: 1,
-        unitPrice: selected.price,
-      },
-    ]);
+    setItems((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
+      if (existing) {
+        if (existing.quantity >= product.stock) return prev;
+        return prev.map((item) =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1, stock: product.stock }
+            : item,
+        );
+      }
+
+      return [
+        ...prev,
+        {
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          quantity: 1,
+          unitPrice: product.price,
+          stock: product.stock,
+        },
+      ];
+    });
   };
 
   const handleRemoveItem = (id: string) => {
-    if (items.length <= 1) return;
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   const handleUpdateQuantity = (id: string, delta: number) => {
     setItems((prev) =>
-      prev.map((i) => {
-        if (i.id !== id) return i;
-        const newQty = Math.max(1, i.quantity + delta);
-        return { ...i, quantity: newQty };
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const max = item.stock ?? Number.POSITIVE_INFINITY;
+        const next = Math.min(max, Math.max(1, item.quantity + delta));
+        return next === item.quantity ? item : { ...item, quantity: next };
       }),
     );
   };
@@ -205,22 +198,33 @@ const InnerNewSaleForm: React.FC<InnerNewSaleFormProps> = ({
               onValueChange={(val) =>
                 setSelectedCatalogIndex(parseInt(val, 10))
               }
+              disabled={products.length === 0}
             >
               <SelectTrigger
                 size="sm"
                 className="h-9.5 w-full rounded-[var(--dashboard-input-radius)] border border-[var(--neutral-border)] bg-[var(--neutral-surface)] px-3 text-xs text-[var(--neutral-emphasis)] shadow-2xs"
               >
-                <SelectValue placeholder="Seleccionar producto del catálogo..." />
+                <SelectValue
+                  placeholder={
+                    productsLoading
+                      ? "Cargando catálogo..."
+                      : "Seleccionar producto del catálogo..."
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
-                {QUICK_CATALOG.map((item, idx) => (
-                  <SelectItem key={item.name} value={idx.toString()}>
+                {products.map((item, idx) => (
+                  <SelectItem
+                    key={item.id}
+                    value={idx.toString()}
+                    disabled={item.stock <= 0}
+                  >
                     <span className="font-medium">{item.name}</span>
                     <span className="text-[var(--neutral-muted)] font-mono ml-1.5">
                       (${item.price.toLocaleString("es-AR")})
                     </span>
                     <span className="text-[10px] text-[var(--neutral-muted)] ml-auto pl-2">
-                      {item.category}
+                      {item.stock <= 0 ? "Sin stock" : `${item.stock} disp.`}
                     </span>
                   </SelectItem>
                 ))}
@@ -230,12 +234,23 @@ const InnerNewSaleForm: React.FC<InnerNewSaleFormProps> = ({
           <button
             type="button"
             onClick={handleAddItemFromCatalog}
-            className="inline-flex h-9.5 items-center justify-center gap-1.5 rounded-[var(--radius-btn)] bg-[var(--neutral-brand)] px-4 text-xs font-medium text-white hover:bg-[var(--neutral-brand-hover)] active:scale-[0.98] transition-all cursor-pointer shadow-2xs shrink-0"
+            disabled={!selectedProduct || selectedProduct.stock <= 0}
+            className="inline-flex h-9.5 items-center justify-center gap-1.5 rounded-[var(--radius-btn)] bg-[var(--neutral-brand)] px-4 text-xs font-medium text-white hover:bg-[var(--neutral-brand-hover)] active:scale-[0.98] transition-all cursor-pointer shadow-2xs shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>Agregar</span>
           </button>
         </div>
+        {productsError && (
+          <p className="mt-2 text-[11px] text-[var(--destructive)]">
+            No se pudo cargar el catálogo de productos.
+          </p>
+        )}
+        {!productsLoading && products.length === 0 && !productsError && (
+          <p className="mt-2 text-[11px] text-[var(--neutral-muted)]">
+            No hay productos cargados en el catálogo.
+          </p>
+        )}
       </div>
 
       {/* Cart Items List */}
@@ -290,8 +305,7 @@ const InnerNewSaleForm: React.FC<InnerNewSaleFormProps> = ({
               <button
                 type="button"
                 onClick={() => handleRemoveItem(item.id)}
-                disabled={items.length <= 1}
-                className="h-7 w-7 text-[var(--neutral-muted)] hover:text-[var(--destructive)] disabled:opacity-20 inline-flex items-center justify-center cursor-pointer shrink-0"
+                className="h-7 w-7 text-[var(--neutral-muted)] hover:text-[var(--destructive)] inline-flex items-center justify-center cursor-pointer shrink-0"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -548,7 +562,8 @@ const InnerNewSaleForm: React.FC<InnerNewSaleFormProps> = ({
           </button>
           <button
             type="submit"
-            className="inline-flex h-9.5 items-center justify-center rounded-[var(--radius-btn)] bg-[var(--neutral-brand)] px-5 text-xs font-medium text-white hover:bg-[var(--neutral-brand-hover)] active:scale-[0.98] transition-all cursor-pointer shadow-xs"
+            disabled={items.length === 0}
+            className="inline-flex h-9.5 items-center justify-center rounded-[var(--radius-btn)] bg-[var(--neutral-brand)] px-5 text-xs font-medium text-white hover:bg-[var(--neutral-brand-hover)] active:scale-[0.98] transition-all cursor-pointer shadow-xs disabled:cursor-not-allowed disabled:opacity-40"
           >
             Confirmar Venta
           </button>

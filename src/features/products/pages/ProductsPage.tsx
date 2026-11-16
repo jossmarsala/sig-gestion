@@ -10,20 +10,38 @@ import { UpdatePricesDialog } from "../components/UpdatePricesDialog";
 import { ProductDetailModal } from "../components/ProductDetailModal";
 import { ProductHistoryModal } from "../components/ProductHistoryModal";
 import { DeleteProductDialog } from "../components/DeleteProductDialog";
-import { INITIAL_PRODUCTS } from "../data/mockProducts";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getErrorMessage } from "@/lib/api/errors";
+import {
+  useProductCatalogs,
+  useProductMutations,
+  useProducts,
+} from "../hooks/useProducts";
+import {
+  toCreateProductoPayload,
+  toUpdateProductoPayload,
+} from "../api/products.adapters";
 import type {
   ProductItem,
   ProductCategory,
   ProductViewMode,
   NewProductFormData,
   BulkPriceUpdateFormData,
-  PriceMovement,
 } from "../types/products.types";
 
 export const ProductsPage: React.FC = () => {
   const { products: permissions } = usePermissions();
-  const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
+
+  // Server state: real API or MSW, depending on VITE_DATA_SOURCE.
+  const { products, isLoading, error, refetch } = useProducts();
+  const {
+    catalogs,
+    isLoading: catalogsLoading,
+    error: catalogsError,
+    refetch: refetchCatalogs,
+  } = useProductCatalogs();
+  const { create, update, remove } = useProductMutations();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] =
     useState<ProductCategory>("Todos");
@@ -63,7 +81,7 @@ export const ProductsPage: React.FC = () => {
     }
   }, [searchParams, location.state, setSearchParams, permissions.canCreateProduct]);
 
-  // Keep modal product synced with updated state
+  // Keep modal product synced with refreshed data
   const currentHistoryProduct = useMemo(() => {
     if (!productForHistory) return null;
     return (
@@ -108,204 +126,143 @@ export const ProductsPage: React.FC = () => {
     });
   }, [products, activeCategory, searchQuery]);
 
-  // Handlers for CRUD
-  const handleSaveProduct = (formData: NewProductFormData, editId?: string) => {
-    if (editId) {
-      // Edit existing
-      setProducts((prev) =>
-        prev.map((item) => {
-          if (item.id !== editId) return item;
-
-          const priceChanged = item.price !== formData.price;
-          const priceRecord: PriceMovement | null = priceChanged
-            ? {
-                id: `p-${Date.now()}`,
-                date: new Date().toLocaleDateString("es-AR"),
-                oldPrice: item.price,
-                newPrice: formData.price,
-                difference:
-                  Math.round((formData.price - item.price) * 100) / 100,
-                percentageChange:
-                  item.price > 0
-                    ? Math.round(
-                        ((formData.price - item.price) / item.price) * 1000,
-                      ) / 10
-                    : 0,
-                reason: "Edición manual de producto",
-              }
-            : null;
-
-          return {
-            ...item,
-            name: formData.name,
-            code: formData.code,
-            category: formData.category,
-            price: formData.price,
-            stock: formData.stock,
-            metalPurity: formData.metalPurity,
-            weightGrams: formData.weightGrams,
-            description: formData.description,
-            priceHistory: priceRecord
-              ? [priceRecord, ...(item.priceHistory || [])]
-              : item.priceHistory,
-          };
-        }),
+  // Handlers for CRUD (React Query mutations)
+  const handleSaveProduct = async (
+    formData: NewProductFormData,
+    editId?: string,
+  ) => {
+    if (!catalogs) {
+      showToast(
+        "No se pudieron cargar las categorías y materiales. Reintentá en unos segundos.",
+        "error",
       );
-      showToast(`Producto "${formData.name}" actualizado con éxito.`);
-    } else {
-      // Create new
-      const newProduct: ProductItem = {
-        id: Date.now().toString(),
-        name: formData.name,
-        code: formData.code,
-        category: formData.category,
-        price: formData.price,
-        stock: formData.stock,
-        metalPurity: formData.metalPurity,
-        weightGrams: formData.weightGrams,
-        description: formData.description,
-        isRemoteVisible: true,
-        lastMovement: `Alta de producto con ${formData.stock} un.`,
-        history: [
-          {
-            id: `h-${Date.now()}`,
-            date: new Date().toLocaleDateString("es-AR"),
-            type: "ingreso",
-            quantity: formData.stock,
-            reason: "Registro inicial de stock",
-          },
-        ],
-        priceHistory: [
-          {
-            id: `p-${Date.now()}`,
-            date: new Date().toLocaleDateString("es-AR"),
-            oldPrice: formData.price,
-            newPrice: formData.price,
-            difference: 0,
-            percentageChange: 0,
-            reason: "Precio de lanzamiento inicial",
-          },
-        ],
-      };
-      setProducts((prev) => [newProduct, ...prev]);
-      showToast(`Producto "${formData.name}" agregado al catálogo.`);
+      return;
     }
-    setProductToEdit(null);
+
+    try {
+      if (editId) {
+        const current = products.find((item) => item.id === editId);
+        if (!current) throw new Error("El producto ya no existe en el catálogo.");
+
+        await update.mutateAsync({
+          id: editId,
+          payload: toUpdateProductoPayload(formData, current, catalogs),
+        });
+        showToast(`Producto "${formData.name}" actualizado con éxito.`, "success");
+      } else {
+        await create.mutateAsync(toCreateProductoPayload(formData, catalogs));
+        showToast(`Producto "${formData.name}" agregado al catálogo.`, "success");
+      }
+      setProductToEdit(null);
+    } catch (err) {
+      showToast(`No se pudo guardar el producto: ${getErrorMessage(err)}`, "error");
+    }
   };
 
-  const handleDeleteProduct = (productId: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
-    showToast("Producto eliminado del catálogo.");
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      await remove.mutateAsync(productId);
+      showToast("Producto eliminado del catálogo.", "success");
+    } catch (err) {
+      showToast(`No se pudo eliminar el producto: ${getErrorMessage(err)}`, "error");
+    }
   };
 
-  const handleApplyPriceUpdate = (data: BulkPriceUpdateFormData) => {
+  const handleApplyPriceUpdate = async (data: BulkPriceUpdateFormData) => {
     const factor = data.isIncrease
       ? 1 + data.percentage / 100
       : 1 - data.percentage / 100;
 
-    setProducts((prev) =>
-      prev.map((item) => {
-        if (data.applyToAll || item.category === data.category) {
-          const updatedPrice = Math.round(item.price * factor * 100) / 100;
-          const diff = Math.round((updatedPrice - item.price) * 100) / 100;
-          const priceRecord: PriceMovement = {
-            id: `p-${Date.now()}-${item.id}`,
-            date: new Date().toLocaleDateString("es-AR"),
-            oldPrice: item.price,
-            newPrice: updatedPrice,
-            difference: diff,
-            percentageChange: (data.isIncrease ? 1 : -1) * data.percentage,
-            reason: `Ajuste masivo (${data.isIncrease ? "+" : "-"}${data.percentage}%)`,
-          };
-          return {
-            ...item,
-            price: updatedPrice,
-            priceHistory: [priceRecord, ...(item.priceHistory || [])],
-          };
-        }
-        return item;
-      }),
+    const targets = products.filter(
+      (item) => data.applyToAll || item.category === data.category,
     );
 
-    showToast(
-      `Precios actualizados (${data.isIncrease ? "+" : "-"}${data.percentage}%) en ${
-        data.applyToAll ? "todos los productos" : data.category
-      }.`,
-    );
+    if (targets.length === 0) {
+      showToast("No hay productos que coincidan con el filtro.", "warning");
+      return;
+    }
+
+    try {
+      await Promise.all(
+        targets.map((item) =>
+          update.mutateAsync({
+            id: item.id,
+            payload: {
+              precio: Math.round(item.price * factor * 100) / 100,
+            },
+          }),
+        ),
+      );
+
+      showToast(
+        `Precios actualizados (${data.isIncrease ? "+" : "-"}${data.percentage}%) en ${
+          data.applyToAll ? "todos los productos" : data.category
+        }.`,
+        "success",
+      );
+    } catch (err) {
+      showToast(`No se pudieron actualizar los precios: ${getErrorMessage(err)}`, "error");
+    }
   };
 
-  const handleAdjustStock = (
+  const handleAdjustStock = async (
     productId: string,
     delta: number,
-    reason: string,
+    _reason: string,
   ) => {
-    setProducts((prev) =>
-      prev.map((item) => {
-        if (item.id !== productId) return item;
-        const newStock = Math.max(0, item.stock + delta);
-        const newMovement = {
-          id: `h-${Date.now()}`,
-          date: new Date().toLocaleDateString("es-AR"),
-          type: (delta > 0 ? "ingreso" : "egreso") as "ingreso" | "egreso",
-          quantity: Math.abs(delta),
-          reason,
-        };
-        return {
-          ...item,
-          stock: newStock,
-          lastMovement: `${reason} (${delta > 0 ? "+" : ""}${delta} un.)`,
-          history: [newMovement, ...(item.history || [])],
-        };
-      }),
-    );
-    showToast(`Stock actualizado con éxito.`);
+    const product = products.find((item) => item.id === productId);
+    if (!product) {
+      showToast("El producto ya no existe en el catálogo.", "error");
+      return;
+    }
+
+    try {
+      await update.mutateAsync({
+        id: productId,
+        payload: { stock: Math.max(0, product.stock + delta) },
+      });
+      showToast("Stock actualizado con éxito.", "success");
+    } catch (err) {
+      showToast(`No se pudo actualizar el stock: ${getErrorMessage(err)}`, "error");
+    }
   };
 
-  const handleUpdateProductPrice = (
+  const handleUpdateProductPrice = async (
     productId: string,
     newPrice: number,
-    reason: string,
+    _reason: string,
   ) => {
-    setProducts((prev) =>
-      prev.map((item) => {
-        if (item.id !== productId) return item;
-        const diff = Math.round((newPrice - item.price) * 100) / 100;
-        const pct =
-          item.price > 0
-            ? Math.round(((newPrice - item.price) / item.price) * 1000) / 10
-            : 0;
-        const newRecord: PriceMovement = {
-          id: `p-${Date.now()}`,
-          date: new Date().toLocaleDateString("es-AR"),
-          oldPrice: item.price,
-          newPrice,
-          difference: diff,
-          percentageChange: pct,
-          reason,
-        };
-        return {
-          ...item,
-          price: newPrice,
-          priceHistory: [newRecord, ...(item.priceHistory || [])],
-        };
-      }),
-    );
-    showToast(`Precio actualizado con éxito a $${newPrice.toFixed(2)}.`);
+    try {
+      await update.mutateAsync({ id: productId, payload: { precio: newPrice } });
+      showToast(`Precio actualizado con éxito a $${newPrice.toFixed(2)}.`, "success");
+    } catch (err) {
+      showToast(`No se pudo actualizar el precio: ${getErrorMessage(err)}`, "error");
+    }
   };
 
-  const handleToggleRemoteVisibility = (product: ProductItem) => {
-    const nextState = product.isRemoteVisible === false ? true : false;
-    setProducts((prev) =>
-      prev.map((item) =>
-        item.id === product.id ? { ...item, isRemoteVisible: nextState } : item,
-      ),
-    );
-    showToast(
-      nextState
-        ? `"${product.name}" ahora es visible en el catálogo remoto.`
-        : `"${product.name}" se ocultó del catálogo remoto.`,
-    );
+  const handleToggleRemoteVisibility = async (product: ProductItem) => {
+    const nextState = product.isRemoteVisible !== true;
+
+    try {
+      await update.mutateAsync({
+        id: product.id,
+        payload: { visibilidad: nextState },
+      });
+      showToast(
+        nextState
+          ? `"${product.name}" ahora es visible en el catálogo remoto.`
+          : `"${product.name}" se ocultó del catálogo remoto.`,
+        "success",
+      );
+    } catch (err) {
+      showToast(
+        `No se pudo cambiar la visibilidad: ${getErrorMessage(err)}`,
+        "error",
+      );
+    }
   };
+
+  const loadError = error ?? catalogsError;
 
   return (
     <div className="w-full max-w-[1200px] mx-auto space-y-6 animate-fade-in">
@@ -317,6 +274,37 @@ export const ProductsPage: React.FC = () => {
         }}
         onUpdatePricesClick={() => setIsUpdatePricesOpen(true)}
       />
+
+      {/* Data source feedback */}
+      {(isLoading || catalogsLoading) && (
+        <div
+          role="status"
+          className="rounded-[var(--radius-card)] border border-[var(--neutral-border-subtle)] bg-[var(--neutral-card)] px-4 py-3 text-xs text-[var(--neutral-muted)]"
+        >
+          Cargando catálogo…
+        </div>
+      )}
+
+      {loadError && (
+        <div
+          role="alert"
+          className="flex flex-col gap-2 rounded-[var(--radius-card)] border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-xs text-[var(--neutral-emphasis)] sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>
+            No se pudo cargar el catálogo: {getErrorMessage(loadError)}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              void refetch();
+              void refetchCatalogs();
+            }}
+            className="self-start rounded-[var(--radius-input)] border border-[var(--neutral-border)] px-3 py-1.5 font-medium hover:bg-[var(--neutral-subtle)] sm:self-auto"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Filter Bar: Search, Category Pills & Segmented Grid/List toggle */}
       <ProductsFilterBar
@@ -373,6 +361,7 @@ export const ProductsPage: React.FC = () => {
         }}
         productToEdit={productToEdit}
         onSaveProduct={handleSaveProduct}
+        materials={catalogs?.materiales.map((material) => material.descripcion) ?? []}
       />
 
       <UpdatePricesDialog

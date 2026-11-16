@@ -3,11 +3,16 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+/* ─── Segoe UI Variable — Fluent Design 2 primary typeface ───────────────── */
+:root {
+  --fluent-font: 'Segoe UI Variable Text', 'Segoe UI Variable', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, Helvetica, Arial, sans-serif;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
     --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-sans: var(--fluent-font, 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif);
 
     /* Theme colors */
     --color-sidebar-ring: var(--sidebar-ring);
@@ -733,5 +738,188 @@
     transition: all 150ms ease-in-out;
     cursor: pointer;
     user-select: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   FLUENT DESIGN 2 — ATOM DESIGN TOKENS
+   Added on branch: design/visual-system
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Fluent radius scale (Fluent spec: 8px top-level, 4-5px in-page) ── */
+  --fluent-radius-window:   8px;   /* App windows, dialogs, flyouts */
+  --fluent-radius-flyout:   8px;   /* Flyout / dropdown panels */
+  --fluent-radius-control:  5px;   /* In-page controls (buttons, inputs, dropdowns) */
+  --fluent-radius-pill:   9999px;  /* Badge pills */
+
+  /* ── Fluent elevation shadows (dual-layer: ambient + fading directional highlight/lip) ── */
+  /* elevation 2 = control rest/hover: subtle fading bottom lip in light mode */
+  --fluent-shadow-control:        0 1px 2px 0 rgba(0, 0, 0, 0.04), inset 0 -1px 0 0 rgba(0, 0, 0, 0.15);
+  --fluent-shadow-control-hover:  0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 -1px 0 0 rgba(0, 0, 0, 0.18);
+  /* elevation 8 = card */
+  --fluent-shadow-card:     0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 6px 14px -2px rgba(0, 0, 0, 0.07), 0 0 1px 0 rgba(0, 0, 0, 0.08);
+  /* elevation 32 = flyout */
+  --fluent-shadow-flyout:   0 8px 20px 0 rgba(0, 0, 0, 0.08), 0 16px 36px -4px rgba(0, 0, 0, 0.12), 0 0 1px 0 rgba(0, 0, 0, 0.12);
+  /* elevation 128 = dialog */
+  --fluent-shadow-dialog:   0 24px 48px 0 rgba(0, 0, 0, 0.16), 0 48px 96px -8px rgba(0, 0, 0, 0.14), 0 0 2px 0 rgba(0, 0, 0, 0.16);
+
+  /* ── Focus ring (2px solid black with 2px offset in light mode) ── */
+  --fluent-focus-ring: #000000;
+  --fluent-focus-offset: #ffffff;
+
+  /* ── Accent (Fluent blue) — light mode ── */
+  --fluent-accent:                #0067c0;
+  --fluent-accent-hover:          #1873c4;
+  --fluent-accent-pressed:        #005aa3;
+  --fluent-accent-border:         transparent;
+  --fluent-accent-fg:             #ffffff;
+
+  /* ── Standard button & control — light mode ── */
+  --fluent-btn-bg:              #ffffff;
+  --fluent-btn-bg-hover:        #fbfbfb;
+  --fluent-btn-bg-pressed:      #f5f5f5;
+  --fluent-btn-fg:              #1c1c1c;
+  --fluent-btn-border:          rgba(0, 0, 0, 0.08);
+  --fluent-btn-border-hover:    rgba(0, 0, 0, 0.12);
+  --fluent-btn-border-pressed:  rgba(0, 0, 0, 0.08);
+
+  /* ── Destructive ── */
+  --fluent-destructive:         #c42b1c;
+  --fluent-destructive-hover:   #b02417;
+  --fluent-destructive-pressed: #8e1a0f;
+
+  /* ── Item hover (list / dropdown items) ── */
+  --fluent-item-hover:          rgba(0, 0, 0, 0.04);
+  --fluent-item-pressed:        rgba(0, 0, 0, 0.07);
+
+  /* ── Subtle border (separators, dividers) ── */
+  --fluent-border-subtle:       rgba(0, 0, 0, 0.07);
+
+  /* ── Surfaces — light mode ── */
+  --fluent-surface-base:        #f4f4f4;    /* Mica base */
+  --fluent-surface-shell:       #ebebeb;    /* Sidebar shell */
+  --fluent-surface-card:        #ffffff;
+  --fluent-surface-card-border: rgba(0, 0, 0, 0.06);
+
+  /* Flyout Acrylic */
+  --fluent-surface-flyout:        rgba(255, 255, 255, 0.86);
+  --fluent-surface-flyout-border: rgba(0, 0, 0, 0.07);
+
+  /* Dialog */
+  --fluent-surface-dialog:        #ffffff;
+  --fluent-surface-dialog-border: rgba(0, 0, 0, 0.08);
+
+  /* Thin Acrylic */
+  --fluent-surface-thin:        rgba(255, 255, 255, 0.55);
+  --fluent-surface-thin-border: rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Dark mode token overrides ──────────────────────────────────────────── */
+.dark {
+  /* ── Dark elevation shadows (ambient + fading illuminated top highlight) ── */
+  --fluent-shadow-control:        0 1px 2px 0 rgba(0, 0, 0, 0.28), inset 0 1px 0 0 rgba(255, 255, 255, 0.14);
+  --fluent-shadow-control-hover:  0 1px 2px 0 rgba(0, 0, 0, 0.32), inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
+  --fluent-shadow-card:     0 2px 4px 0 rgba(0, 0, 0, 0.35), 0 6px 16px -2px rgba(0, 0, 0, 0.45), 0 0 1px 0 rgba(255, 255, 255, 0.08);
+  --fluent-shadow-flyout:   0 8px 24px 0 rgba(0, 0, 0, 0.5), 0 16px 40px -4px rgba(0, 0, 0, 0.6), 0 0 1px 0 rgba(255, 255, 255, 0.10);
+  --fluent-shadow-dialog:   0 24px 48px 0 rgba(0, 0, 0, 0.6), 0 48px 96px -8px rgba(0, 0, 0, 0.7), 0 0 2px 0 rgba(255, 255, 255, 0.12);
+
+  /* Focus ring: 2px solid white with 2px offset in dark mode */
+  --fluent-focus-ring: #ffffff;
+  --fluent-focus-offset: #202020;
+
+  /* ── Accent — dark mode (Cyan blue #60cdff with deep dark navy text) ── */
+  --fluent-accent:                #60cdff;
+  --fluent-accent-hover:          #73d4ff;
+  --fluent-accent-pressed:        #47c3f7;
+  --fluent-accent-border:         transparent;
+  --fluent-accent-fg:             #002747;
+
+  /* ── Standard button & control — dark mode ── */
+  --fluent-btn-bg:              rgba(255, 255, 255, 0.06);
+  --fluent-btn-bg-hover:        rgba(255, 255, 255, 0.09);
+  --fluent-btn-bg-pressed:      rgba(255, 255, 255, 0.035);
+  --fluent-btn-fg:              rgba(255, 255, 255, 0.92);
+  --fluent-btn-border:          rgba(255, 255, 255, 0.08);
+  --fluent-btn-border-hover:    rgba(255, 255, 255, 0.12);
+  --fluent-btn-border-pressed:  rgba(255, 255, 255, 0.06);
+
+  /* ── Item hover ── */
+  --fluent-item-hover:          rgba(255, 255, 255, 0.065);
+  --fluent-item-pressed:        rgba(255, 255, 255, 0.12);
+
+  /* ── Subtle border ── */
+  --fluent-border-subtle:       rgba(255, 255, 255, 0.08);
+
+  /* ── Surfaces — dark mode ── */
+  --fluent-surface-base:          #202020;
+  --fluent-surface-shell:         #272727;
+  --fluent-surface-card:          #2c2c2c;
+  --fluent-surface-card-border:   rgba(255, 255, 255, 0.065);
+  --fluent-surface-flyout:        rgba(44, 44, 44, 0.88);
+  --fluent-surface-flyout-border: rgba(255, 255, 255, 0.08);
+  --fluent-surface-dialog:        #2c2c2c;
+  --fluent-surface-dialog-border: rgba(255, 255, 255, 0.09);
+  --fluent-surface-thin:          rgba(38, 38, 38, 0.60);
+  --fluent-surface-thin-border:   rgba(255, 255, 255, 0.05);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   FLUENT SURFACE CLASSES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* base — Mica layer: app canvas */
+  .surface-base {
+    background-color: var(--fluent-surface-base);
+  }
+
+  /* shell — Navigation shell / sidebar */
+  .surface-shell {
+    background-color: var(--fluent-surface-shell);
+    border: 1px solid var(--fluent-border-subtle);
+    box-shadow: var(--fluent-shadow-control);
+  }
+
+  /* card — Elevation 8 · content cards */
+  .surface-card {
+    background-color: var(--fluent-surface-card);
+    border: 1px solid var(--fluent-surface-card-border);
+    box-shadow: var(--fluent-shadow-card);
+  }
+
+  /* flyout — Elevation 32 · dropdowns, context menus, non-modal popups */
+  .surface-flyout {
+    background-color: var(--fluent-surface-flyout);
+    border: 1px solid var(--fluent-surface-flyout-border);
+    box-shadow: var(--fluent-shadow-flyout);
+  }
+
+  @supports (backdrop-filter: blur(24px)) {
+    .surface-flyout {
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+    }
+  }
+
+  /* dialog — Elevation 128 · modal dialogs */
+  .surface-dialog {
+    background-color: var(--fluent-surface-dialog);
+    border: 1px solid var(--fluent-surface-dialog-border);
+    box-shadow: var(--fluent-shadow-dialog);
+  }
+
+  /* thin-acrylic — Translucent supporting panels */
+  .surface-thin-acrylic {
+    background-color: var(--fluent-surface-thin);
+    border: 1px solid var(--fluent-surface-thin-border);
+    box-shadow: var(--fluent-shadow-control);
+  }
+
+  @supports (backdrop-filter: blur(14px)) {
+    .surface-thin-acrylic {
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+    }
   }
 }
