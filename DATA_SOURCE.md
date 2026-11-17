@@ -43,9 +43,9 @@ En desarrollo también hay un indicador en el pie del sidebar
 (`Datos simulados` / `API real`): un click cambia de modo y recarga. El botón
 de reset vuelve al valor de `.env`.
 
-> En builds de producción el indicador no se muestra (`import.meta.env.DEV`).
-> Si no se define `VITE_DATA_SOURCE`, en producción se usa `api` y en
-> desarrollo `mock`.
+> En builds de producción el indicador se oculta por defecto. Se puede mostrar
+> con `VITE_SHOW_DATA_SOURCE_TOGGLE=true` (útil para demos). Si no se define
+> `VITE_DATA_SOURCE`, en producción se usa `api` y en desarrollo `mock`.
 
 ## Qué está simulado hoy
 

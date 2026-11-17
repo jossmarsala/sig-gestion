@@ -12,11 +12,15 @@ interface DataSourceToggleProps {
 }
 
 /**
- * Dev-only switch between the real Express API and the MSW fixtures.
- * Production builds use VITE_DATA_SOURCE only.
+ * Switch between the real Express API and the MSW fixtures.
+ * Hidden in production unless VITE_SHOW_DATA_SOURCE_TOGGLE=true (useful for
+ * demos); otherwise production uses VITE_DATA_SOURCE only.
  */
 export const DataSourceToggle: React.FC<DataSourceToggleProps> = ({ isCollapsed = false }) => {
-  if (!import.meta.env.DEV) return null
+  const toggleEnabled =
+    import.meta.env.DEV || import.meta.env.VITE_SHOW_DATA_SOURCE_TOGGLE === 'true'
+
+  if (!toggleEnabled) return null
 
   const isMock = dataSource === 'mock'
   const isOverridden = dataSource !== defaultDataSource
