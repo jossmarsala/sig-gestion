@@ -15,6 +15,11 @@ import { StatsPage } from '@/features/stats/pages/StatsPage'
 import { useAuth } from '@/hooks/useAuth'
 import { getDefaultRouteForRole } from '@/config/navigation.config'
 
+// Dev-only: Design System Sandbox
+const DesignSystemPage = import.meta.env.DEV
+  ? React.lazy(() => import('@/pages/DesignSystemPage'))
+  : null
+
 const UnauthorizedPage: React.FC = () => (
   <div className="flex min-h-screen flex-col items-center justify-center p-4 text-center">
     <h2 className="text-2xl font-bold text-[var(--neutral-emphasis)]">Acceso Restringido</h2>
@@ -38,6 +43,18 @@ export const AppRoutes: React.FC = () => {
       </Route>
 
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+      {/* Dev-only: Design System Sandbox — no auth required */}
+      {import.meta.env.DEV && DesignSystemPage && (
+        <Route
+          path="/design-system"
+          element={
+            <React.Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-[var(--neutral-muted)]">Cargando…</div>}>
+              <DesignSystemPage />
+            </React.Suspense>
+          }
+        />
+      )}
 
       {/* Authenticated Routes */}
       <Route element={<AuthGuard />}>

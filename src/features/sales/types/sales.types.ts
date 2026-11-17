@@ -20,11 +20,14 @@ export interface CustomerProfile {
 }
 
 export interface SaleItem {
+  /** `id_producto` del catálogo (string para mantener el tipo histórico). */
   id: string
   name: string
   category: 'Anillos' | 'Aros' | 'Cadenas' | 'Pulseras'
   quantity: number
   unitPrice: number
+  /** Stock disponible al agregar el artículo (solo UI, no se envía). */
+  stock?: number
 }
 
 export interface SaleExchangeRecord {

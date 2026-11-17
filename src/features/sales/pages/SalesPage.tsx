@@ -8,8 +8,8 @@ import { SalesFilters } from '../components/SalesFilters'
 import { SalesTable } from '../components/SalesTable'
 import { NewSaleDialog } from '../components/NewSaleDialog'
 import { SaleDetailDialog } from '../components/SaleDetailDialog'
-import { DeleteSaleDialog } from '../components/DeleteSaleDialog'
 import { ProductExchangeDialog } from '../components/ProductExchangeDialog'
+import { getErrorMessage } from '@/lib/api/errors'
 import type {
   SaleRecord,
   NewSaleFormData,
@@ -17,7 +17,7 @@ import type {
 } from '../types/sales.types'
 
 export const SalesPage: React.FC = () => {
-  const { sales, kpis, createSale, confirmExchange, deleteSale } = useSales()
+  const { sales, kpis, createSale, confirmExchange, isLoading, error, refetch } = useSales()
   const [searchQuery, setSearchQuery] = useState('')
   const [activePaymentFilter, setActivePaymentFilter] = useState('all')
 
@@ -25,7 +25,6 @@ export const SalesPage: React.FC = () => {
   const { showToast } = useToast()
   const [isNewSaleOpen, setIsNewSaleOpen] = useState(false)
   const [selectedSaleForDetail, setSelectedSaleForDetail] = useState<SaleRecord | null>(null)
-  const [saleToDelete, setSaleToDelete] = useState<SaleRecord | null>(null)
   const [saleForExchange, setSaleForExchange] = useState<SaleRecord | null>(null)
 
   const [searchParams, setSearchParams] = useSearchParams()
@@ -67,30 +66,29 @@ export const SalesPage: React.FC = () => {
     })
   }, [sales, activePaymentFilter, searchQuery])
 
-  // Register a new sale
-  const handleCreateSale = (formData: NewSaleFormData) => {
-    const newSale = createSale(formData)
-    showToast(`Venta ${newSale.ticketNumber} registrada con éxito por $${newSale.total.toLocaleString('es-AR')}.`)
+  // Register a new sale (POST /api/ventas; stock is discounted by the backend)
+  const handleCreateSale = async (formData: NewSaleFormData) => {
+    try {
+      const newSale = await createSale(formData)
+      showToast(
+        `Venta ${newSale.ticketNumber} registrada con éxito por $${newSale.total.toLocaleString('es-AR')}.`,
+        'success'
+      )
+      setIsNewSaleOpen(false)
+    } catch (err) {
+      showToast(`No se pudo registrar la venta: ${getErrorMessage(err)}`, 'error')
+    }
   }
 
-  // Confirm product exchange (Enforcing max 1 exchange policy)
-  const handleConfirmExchange = (data: RegistrarCambioFormData) => {
-    confirmExchange(data)
-
-    const extraDiffMsg =
-      data.diferenciaMonto > 0
-        ? ` Diferencia: +$${data.diferenciaMonto.toLocaleString('es-AR')}.`
-        : data.saldoAFavorEmitido
-        ? ` Saldo a favor: $${data.saldoAFavorEmitido.toLocaleString('es-AR')}.`
-        : ''
-
-    showToast(`Cambio de producto registrado para el ticket #${data.saleId}.${extraDiffMsg}`)
-  }
-
-  // Void/Delete a sale
-  const handleDeleteSale = (saleId: string) => {
-    deleteSale(saleId)
-    showToast('Venta anulada correctamente.')
+  // Product exchanges are not supported by the current backend
+  const handleConfirmExchange = async (data: RegistrarCambioFormData) => {
+    try {
+      await confirmExchange(data)
+      showToast(`Cambio de producto registrado para el ticket #${data.saleId}.`, 'success')
+      setSaleForExchange(null)
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    }
   }
 
   return (
@@ -99,6 +97,32 @@ export const SalesPage: React.FC = () => {
       <SalesHeader
         onNewSaleClick={() => setIsNewSaleOpen(true)}
       />
+
+      {/* Data source feedback */}
+      {isLoading && (
+        <div
+          role="status"
+          className="rounded-[var(--radius-card)] border border-[var(--neutral-border-subtle)] bg-[var(--neutral-card)] px-4 py-3 text-xs text-[var(--neutral-muted)]"
+        >
+          Cargando ventas…
+        </div>
+      )}
+
+      {error != null && (
+        <div
+          role="alert"
+          className="flex flex-col gap-2 rounded-[var(--radius-card)] border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-xs text-[var(--neutral-emphasis)] sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>No se pudieron cargar las ventas: {getErrorMessage(error)}</span>
+          <button
+            type="button"
+            onClick={refetch}
+            className="self-start rounded-[var(--radius-input)] border border-[var(--neutral-border)] px-3 py-1.5 font-medium hover:bg-[var(--neutral-subtle)] sm:self-auto"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards Row */}
       <SalesKpiRow
@@ -117,7 +141,6 @@ export const SalesPage: React.FC = () => {
       <SalesTable
         sales={filteredSales}
         onViewSale={(sale) => setSelectedSaleForDetail(sale)}
-        onDeleteSale={(sale) => setSaleToDelete(sale)}
         onExchangeSale={(sale) => setSaleForExchange(sale)}
         onResetFilters={() => {
           setSearchQuery('')
@@ -144,13 +167,6 @@ export const SalesPage: React.FC = () => {
         onOpenChange={(open) => !open && setSaleForExchange(null)}
         sale={saleForExchange}
         onSubmitExchange={handleConfirmExchange}
-      />
-
-      <DeleteSaleDialog
-        open={!!saleToDelete}
-        onOpenChange={(open) => !open && setSaleToDelete(null)}
-        sale={saleToDelete}
-        onConfirmDelete={handleDeleteSale}
       />
     </div>
   )

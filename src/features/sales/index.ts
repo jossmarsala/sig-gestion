@@ -7,6 +7,5 @@ export * from './components/SalesTable'
 export * from './components/NewSaleDialog'
 export * from './components/SaleDetailDialog'
 export * from './components/ProductExchangeDialog'
-export * from './components/DeleteSaleDialog'
 export * from './pages/SalesPage'
 

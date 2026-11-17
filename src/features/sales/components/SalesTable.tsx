@@ -1,12 +1,11 @@
 import React from 'react'
-import { Eye, Trash2, ArrowLeftRight } from 'lucide-react'
+import { Eye, ArrowLeftRight } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 import type { SaleRecord } from '../types/sales.types'
 
 interface SalesTableProps {
   sales: SaleRecord[]
   onViewSale: (sale: SaleRecord) => void
-  onDeleteSale: (sale: SaleRecord) => void
   onExchangeSale?: (sale: SaleRecord) => void
   onResetFilters?: () => void
 }
@@ -14,7 +13,6 @@ interface SalesTableProps {
 export const SalesTable: React.FC<SalesTableProps> = ({
   sales,
   onViewSale,
-  onDeleteSale,
   onExchangeSale,
   onResetFilters,
 }) => {
@@ -158,15 +156,6 @@ export const SalesTable: React.FC<SalesTableProps> = ({
                       className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--neutral-muted)] hover:text-[var(--neutral-emphasis)] hover:bg-[var(--neutral-subtle)] active:scale-[0.98] transition-all cursor-pointer"
                     >
                       <Eye className="h-4 w-4 stroke-[1.75]" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteSale(sale)}
-                      title="Anular venta"
-                      aria-label="Anular venta"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--neutral-muted)] hover:text-[var(--destructive)] hover:bg-[var(--destructive)]/10 active:scale-[0.98] transition-all cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4 stroke-[1.75]" />
                     </button>
                   </div>
                 </td>
